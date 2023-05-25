@@ -3,16 +3,15 @@
 
 #include "mame.h" // error_log
 
-#include "mixer.h" // GN
+#include "mixer.h"
 
 #include "driver.h"
 
 
-extern int g_Samplerate; // GN
+extern int g_Samplerate;
 
 
-static int firstchannel,numchannels;
-
+/* static */ int firstchannel,numchannels;
 
 
 // GN: modified interface for sample_start()
@@ -35,59 +34,14 @@ void sample_start2(int channel,unsigned char *data,int len,int freq,int volume,i
 
 }
 
-
-
-#if 0 // Machine->samples doesn't exist in early versions
-
-/* Start one of the samples loaded from disk. Note: channel must be in the range */
-/* 0 .. Samplesinterface->channels-1. It is NOT the discrete channel to pass to */
-/* mixer_play_sample() */
-void sample_start(int channel,int samplenum,int loop)
-{
-// GN // 	if (Machine->sample_rate == 0) return;
-	if (Machine->samples == 0) return;
-	if (Machine->samples->sample[samplenum] == 0) return;
-	if (channel >= numchannels)
-	{
-		if (errorlog) fprintf(errorlog,"error: sample_start() called with channel = %d, but only %d channels allocated\n",channel,numchannels);
-		return;
-	}
-	if (samplenum >= Machine->samples->total)
-	{
-		if (errorlog) fprintf(errorlog,"error: sample_start() called with samplenum = %d, but only %d samples available\n",samplenum,Machine->samples->total);
-		return;
-	}
-
-	if ( Machine->samples->sample[samplenum]->resolution == 8 )
-	{
-		if (errorlog) fprintf(errorlog,"play 8 bit sample %d, channel %d\n",samplenum,channel);
-		mixer_play_sample(firstchannel + channel,
-				Machine->samples->sample[samplenum]->data,
-				Machine->samples->sample[samplenum]->length,
-				Machine->samples->sample[samplenum]->smpfreq,
-				loop);
-	}
-	else
-	{
-		if (errorlog) fprintf(errorlog,"play 16 bit sample %d, channel %d\n",samplenum,channel);
-		mixer_play_sample_16(firstchannel + channel,
-				(short *) Machine->samples->sample[samplenum]->data,
-				Machine->samples->sample[samplenum]->length,
-				Machine->samples->sample[samplenum]->smpfreq,
-				loop);
-	}
-}
-#endif
-
 void sample_set_freq(int channel,int freq)
 {
-// GN //	if (Machine->sample_rate == 0) return;
 	if (g_Samplerate == 0) return;
-//	if (Machine->samples == 0) return;
+
 	if (channel >= numchannels)
 	{
 		if (errorlog) fprintf(errorlog,"error: sample_adjust() called with channel = %d, but only %d channels allocated\n",channel,numchannels);
-		return;
+                return;
 	}
 
 	mixer_set_sample_frequency(channel + firstchannel,freq);
@@ -95,9 +49,9 @@ void sample_set_freq(int channel,int freq)
 
 void sample_set_volume(int channel,int volume)
 {
-// GN //	if (Machine->sample_rate == 0) return;
-	if (g_Samplerate == 0) return;
-//	if (Machine->samples == 0) return; // GN: this was not working for mspac, which does not have any "samples"
+	if (g_Samplerate == 0)
+        return;
+
 	if (channel >= numchannels)
 	{
 		if (errorlog) fprintf(errorlog,"error: sample_adjust() called with channel = %d, but only %d channels allocated\n",channel,numchannels);
@@ -109,12 +63,13 @@ void sample_set_volume(int channel,int volume)
 
 void sample_stop(int channel)
 {
-// GN //	if (Machine->sample_rate == 0) return;
-	if (g_Samplerate == 0) return;
+	if (g_Samplerate == 0)
+        return;
+
 	if (channel >= numchannels)
 	{
 		if (errorlog) fprintf(errorlog,"error: sample_stop() called with channel = %d, but only %d channels allocated\n",channel,numchannels);
-		return;
+                return;
 	}
 
 	mixer_stop_sample(channel + firstchannel);
@@ -122,7 +77,6 @@ void sample_stop(int channel)
 
 int sample_playing(int channel)
 {
-// GN //	if (Machine->sample_rate == 0) return 0;
 	if (g_Samplerate == 0) return 0;
 	if (channel >= numchannels)
 	{
@@ -133,19 +87,15 @@ int sample_playing(int channel)
 	return mixer_is_sample_playing(channel + firstchannel);
 }
 
+//#define NUMVOICES 8 // GN: the highest number that I know of, Galaga, plays a sample on channel 7
 
-
-#define NUMVOICES 8 // GN: the highest number that I know of, Galaga, plays a sample on channel 7
-
-// GN // int samples_sh_start(const struct MachineSound *msound)
 int samples_sh_start(void)
 {
 	int i;
 	int vol[MIXER_MAX_CHANNELS];
-// GN //	const struct Samplesinterface *intf = msound->sound_interface;
 
 	/* read audio samples if available */
-// GN //	Machine->samples = readsamples(intf->samplenames,Machine->gamedrv->name);
+// 	Machine->samples = readsamples(intf->samplenames,Machine->gamedrv->name);
 
 	numchannels = NUMVOICES; // 1; // GN // intf->channels;
 	for (i = 0;i < numchannels;i++)

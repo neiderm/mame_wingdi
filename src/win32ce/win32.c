@@ -17,9 +17,8 @@
             This port to Windows GDI is derived from mame32v36 as well
             as the various MameCE ports.
 ***************************************************************************/
-
+#include "mame.h" // NUM VOICES tmp
 #include <stdio.h> /* debug file output */
-//#include "win32.h"
 #include "cesound.h" // #include "audio.h"
 #include "osdepend.h" /* key def macros */
 
@@ -72,7 +71,7 @@ static HBITMAP	    m_hOldBitmap;
 /* audio related stuff */
 int play_sound = 1;
 
-#define NUMVOICES 8
+//#define NUMVOICES 8
 #define SAMPLE_RATE 44100
 int MasterVolume = 100;
 
@@ -789,8 +788,21 @@ void osd_update_audio(void)
 void osd_play_sample(int channel,unsigned char *data,int len,int freq,int volume,int loop)
 {
     if (play_sound == 0 || channel >= NUMVOICES) return;
-
+#if 0
     sample_start2(channel, data, len, freq, volume, loop);
+#else
+	if (channel >= numchannels)
+	{
+		if (errorlog) fprintf(errorlog,"error: sample_start() called with channel = %d, but only %d channels allocated\n",channel,numchannels);
+		return;
+	}
+
+	mixer_play_sample(firstchannel + channel,
+				data,
+				len,
+				freq,
+				loop);
+#endif
     sample_set_volume(channel, volume);
 }
 
