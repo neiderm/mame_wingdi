@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="mame_win" />
+		<Option makefile="MAKEFILE" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/mame_win" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Option parameters="pacman" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/mame_win" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Option parameters="pacman" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-DLSB_FIRST=1" />
+			<Add directory="src" />
+			<Add directory="src/Z80" />
+			<Add directory="crush" />
+			<Add directory="ladybug" />
+			<Add directory="mspacman" />
+			<Add directory="pacman" />
+			<Add directory="pengo" />
+			<Add directory="src/win32ce" />
+			<Add directory="src/win32ce/sound" />
+		</Compiler>
+		<Linker>
+			<Add library="gdi32" />
+			<Add library="user32" />
+			<Add library="kernel32" />
+			<Add library="winmm" />
+		</Linker>
+		<Unit filename="src/Z80/DAA.h" />
+		<Unit filename="src/Z80/Z80.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Z80/Z80.h" />
+		<Unit filename="src/Z80/Z80CDx86.h" />
+		<Unit filename="src/Z80/Z80Codes.h" />
+		<Unit filename="src/Z80/Z80Dasm.h" />
+		<Unit filename="src/Z80/Z80Debug.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/Z80/Z80IO.h" />
+		<Unit filename="src/common.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/common.h" />
+		<Unit filename="src/crush/driver.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/crush/machine.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/driver.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/driver.h" />
+		<Unit filename="src/ladybug/driver.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/ladybug/machine.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/ladybug/sndhrdw.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/ladybug/vidhrdw.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/machine.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/machine.h" />
+		<Unit filename="src/mame.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/mame.h" />
+		<Unit filename="src/msdos/TWKUSER.H" />
+		<Unit filename="src/osdepend.h" />
+		<Unit filename="src/pacman/driver.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/pacman/machine.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/pengo/driver.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/pengo/machine.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/pengo/sndhrdw.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/pengo/vidhrdw.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/win32ce/cesound.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/win32ce/cesound.h" />
+		<Unit filename="src/win32ce/dirent.h" />
+		<Unit filename="src/win32ce/mame_wnd.h" />
+		<Unit filename="src/win32ce/sound/mixer.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/win32ce/sound/mixer.h" />
+		<Unit filename="src/win32ce/sound/samples.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/win32ce/sound/samples.h" />
+		<Unit filename="src/win32ce/sound/sndintrf.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/win32ce/sound/sndintrf.h" />
+		<Unit filename="src/win32ce/strings.h" />
+		<Unit filename="src/win32ce/win32.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/win32ce/win32.h" />
+		<Extensions>
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
