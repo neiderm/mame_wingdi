@@ -16,6 +16,8 @@
 #ifndef __CESOUND_H__
 #define __CESOUND_H__
 
+//#include "Sound.h"
+
 typedef signed short INT16;
 
 int     CESound_init(void);
@@ -23,5 +25,7 @@ void    CESound_exit(void);
 int     CESound_start_audio_stream(int stereo);
 void    CESound_stop_audio_stream(void);
 int     CESound_update_audio_stream(INT16* buffer);
+
+//extern struct OSDSound  CESound;
 
 #endif

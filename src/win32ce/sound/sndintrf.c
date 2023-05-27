@@ -1,5 +1,6 @@
-// sndintrf.c: routines scabbed from Mame36 sound engine
-// AUG00 - Gandalf
+/*
+ * todo make this conformant to the MAME version being worked on ;)
+ */
 #include "mame.h" // NUM VOICES tmp
 #include "driver.h"
 #include "samples.h"

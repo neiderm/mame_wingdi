@@ -1,22 +1,23 @@
 /***************************************************************************
 
-  mixer.c (Mame36)
+  mixer.c (mamee36s/src/sound/mixer.c)
 
   Manage audio channels allocation, with volume and panning control
 
-  AUG00 - Gandalf: heavy modification to integrate with Mame21
-
 ***************************************************************************/
 
-#include "mame.h" // error_log
+#include "mame.h" /* error_log */
+#include "mixer.h"
 
-#include "mixer.h" // GN
-#include "sndintrf.h" // GN
+/* osd_update_audio_stream(), declared in sndintrf.h, implemented in win32.c
+   also depends on INT16 etc. in mixer.h */
+#include "sndintrf.h"
 
-#include "driver.h"
 #include <math.h>
+#include <stdlib.h> /* exit */
+#include <string.h> /* memset */
 
-extern int g_Samplerate; // GN
+extern int g_Samplerate; /* MameGDI */
 
 
 /* enable this to turn off clipping (helpful to find cases where we max out */
@@ -116,7 +117,7 @@ int mixer_sh_start(void)
 
 	/* determine if we're playing in stereo or not */
 	first_free_channel = 0;
-	is_stereo = 0; // GN // ((Machine->drv->sound_attributes & SOUND_SUPPORTS_STEREO) != 0);
+	is_stereo = 0; /* ((Machine->drv->sound_attributes & SOUND_SUPPORTS_STEREO) != 0) */
 
 	/* clear the accumulators */
 	accum_base = 0;
@@ -137,7 +138,7 @@ int mixer_sh_start(void)
 
 void mixer_sh_stop(void)
 {
-	osd_stop_audio_stream();
+	//osd_stop_audio_stream(); // does nothing
 }
 
 
@@ -183,7 +184,7 @@ void mixer_sh_update(void)
 	INT32 sample;
 	int	i;
 
-// GN //	profiler_mark(PROFILER_MIXER);
+	//profiler_mark(PROFILER_MIXER);
 
 	/* update all channels (for streams this is a no-op) */
 	for (i = 0, channel = mixer_channel; i < first_free_channel; i++, channel++)
@@ -263,7 +264,7 @@ void mixer_sh_update(void)
 
 	accum_base = accum_pos;
 
-// GN // 	profiler_mark(PROFILER_END);
+	//profiler_mark(PROFILER_END);
 }
 
 
@@ -410,9 +411,7 @@ int mixer_get_mixing_level(int ch)
 	return channel->mixing_level;
 }
 
-
-#if USED // GN
-
+#if USED /* MameGDI */
 /***************************************************************************
 	mixer_get_default_mixing_level
 ***************************************************************************/
@@ -465,9 +464,7 @@ void mixer_write_config(void *f)
 	osd_fwrite(f, default_levels, MIXER_MAX_CHANNELS);
 	osd_fwrite(f, mixing_levels, MIXER_MAX_CHANNELS);
 }
-
-#endif // GN
-
+#endif /* MameGDI */
 
 /***************************************************************************
 	mixer_play_streamed_sample_16
@@ -480,11 +477,11 @@ void mixer_play_streamed_sample_16(int ch, INT16 *data, int len, int freq)
 	INT32 mixing_volume;
 
 	/* skip if sound is off */
-	if ( g_Samplerate == 0 ) // GN: if (Machine->sample_rate == 0)
+	if ( g_Samplerate == 0 ) /* if (Machine->sample_rate == 0) */
 		return;
 	channel->is_stream = 1;
 
-// GN //	profiler_mark(PROFILER_MIXER);
+	//profiler_mark(PROFILER_MIXER);
 
 	/* compute the overall mixing volume */
 	if (mixer_sound_enabled)
@@ -496,8 +493,8 @@ void mixer_play_streamed_sample_16(int ch, INT16 *data, int len, int freq)
 	if (freq != channel->frequency)
 	{
 		channel->frequency = freq;
-// GN //		channel->step_size = (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)Machine->sample_rate);
-		channel->step_size = (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)g_Samplerate);
+		channel->step_size = /* (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)Machine->sample_rate) */
+			(UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)g_Samplerate);
 	}
 	step_size = channel->step_size;
 
@@ -551,7 +548,7 @@ void mixer_play_streamed_sample_16(int ch, INT16 *data, int len, int freq)
 	channel->input_frac = input_pos & FRACTION_MASK;
 	channel->samples_available += samples_mixed;
 
-// GN //	profiler_mark(PROFILER_END);
+	//profiler_mark(PROFILER_END);
 }
 
 
@@ -571,13 +568,8 @@ int mixer_samples_this_frame(void)
 #define EXTRA_SAMPLES 1    // safety margin for sampling rate conversion
 int mixer_need_samples_this_frame(int channel,int freq)
 {
-/* GN
 	return (samples_this_frame - mixer_channel[channel].samples_available + EXTRA_SAMPLES)
-			* freq / Machine->sample_rate;
-GN */
-
-	return (samples_this_frame - mixer_channel[channel].samples_available + EXTRA_SAMPLES)
-			* freq / g_Samplerate;
+			* freq / g_Samplerate; /* Machine->sample_rate */
 }
 
 
@@ -590,11 +582,8 @@ void mixer_play_sample(int ch, INT8 *data, int len, int freq, int loop)
 	struct mixer_channel_data *channel = &mixer_channel[ch];
 
 	/* skip if sound is off, or if this channel is a stream */
-
-//	if ( /* Machine->sample_rate == 0 || */ channel->is_stream)
-	if ( g_Samplerate == 0 || channel->is_stream)
-		return; // GN: Machine->sample_rate unsupported
-
+	if ( g_Samplerate == 0 || channel->is_stream) /* Machine->sample_rate */
+		return;
 
 	/* update the state of this channel */
 	mixer_update_channel(channel, sound_scalebufferpos(samples_this_frame));
@@ -603,8 +592,8 @@ void mixer_play_sample(int ch, INT8 *data, int len, int freq, int loop)
 	if (freq != channel->frequency)
 	{
 		channel->frequency = freq;
-// GN //		channel->step_size = (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)Machine->sample_rate);
-		channel->step_size = (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)g_Samplerate);
+		channel->step_size = /* (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)Machine->sample_rate) */
+			(UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)g_Samplerate);
 	}
 
 	/* now determine where to mix it */
@@ -627,11 +616,8 @@ void mixer_play_sample_16(int ch, INT16 *data, int len, int freq, int loop)
 	struct mixer_channel_data *channel = &mixer_channel[ch];
 
 	/* skip if sound is off, or if this channel is a stream */
-
-//	if ( /* Machine->sample_rate == 0 || */ channel->is_stream)
-	if ( g_Samplerate == 0 || channel->is_stream)
-		return; // GN: Machine->sample_rate unsupported
-
+	if ( g_Samplerate == 0 || channel->is_stream) /* Machine->sample_rate == 0 || */
+		return;
 
 	/* update the state of this channel */
 	mixer_update_channel(channel, sound_scalebufferpos(samples_this_frame));
@@ -640,8 +626,8 @@ void mixer_play_sample_16(int ch, INT16 *data, int len, int freq, int loop)
 	if (freq != channel->frequency)
 	{
 		channel->frequency = freq;
-// GN //		channel->step_size = (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)Machine->sample_rate);
-		channel->step_size = (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)g_Samplerate);
+		channel->step_size = /* (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)Machine->sample_rate) */
+			(UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)g_Samplerate);
 	}
 
 	/* now determine where to mix it */
@@ -695,8 +681,8 @@ void mixer_set_sample_frequency(int ch, int freq)
 	if (freq != channel->frequency)
 	{
 		channel->frequency = freq;
-// GN //		channel->step_size = (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)Machine->sample_rate);
-		channel->step_size = (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)g_Samplerate);
+		channel->step_size = /* (UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)Machine->sample_rate) */
+			(UINT32)((double)freq * (double)(1 << FRACTION_BITS) / (double)g_Samplerate);
 	}
 }
 

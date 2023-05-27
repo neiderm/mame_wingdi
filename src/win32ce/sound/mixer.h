@@ -1,11 +1,12 @@
 #ifndef MIXER_H
 #define MIXER_H
 
-typedef unsigned char		UINT8;  // GN
-typedef unsigned int		UINT32; // GN
-typedef signed char 		INT8;   // GN
-typedef signed short		INT16;  // GN
-typedef signed int			INT32;  // GN
+/* MameGDI creates these needed typedefs for mixer.c */
+typedef unsigned char		UINT8;
+typedef unsigned int		UINT32;
+typedef signed char 		INT8;
+typedef signed short		INT16;
+typedef signed int		INT32;
 
 #define MIXER_MAX_CHANNELS 16
 

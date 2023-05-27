@@ -3,7 +3,7 @@
     M.A.M.E.CE  -  Multiple Arcade Machine Emulator for WinCE
     Win32 Portions Copyright (C) 1997-98 Michael Soderstrom and Chris Kirmse
 	WinCE Portions Copyright (C) 1999,2000 Benjamin Cooley
-    
+
     This file is part of MAMECE, and may only be used, modified and
     distributed under the terms of the MAME license, in "readme.txt".
     By continuing to use, modify or distribute this file you indicate
@@ -12,7 +12,7 @@
  ***************************************************************************/
 
 // AUG00 - more abuse and torture to this poor file by Gandalf
-// 12/2010 (GN): I think this file was something from the original 
+// 12/2010 (GN): I think this file was something from the original
 //  MameCE by Ben Cooley which I made various mods too. That project
 //  is long gone, but a variant of the file still exists in the MameCE3
 //  project so I made a couple of changes comparing to that.
@@ -23,38 +23,24 @@
 
  ***************************************************************************/
 
-#include "mame.h"
-
 #include <windows.h>
-#include "driver.h"
-
+//#include "mame.h"
+//#include "osdepend.h"
+//#include "mamece.h"
+//#include "CESound.h"
+//#include "driver.h"
 
 #define FPS			60
 
-// from osd_cpu.h
-//typedef signed short		INT16; // in basetsd.h
-
-
-/* extern */ int g_Samplerate; // GN: V6
-
+/* extern */ int g_Samplerate;
 
 /***************************************************************************
     function prototypes
  ***************************************************************************/
-
-       int      CESound_init(void);
+       int      CESound_init(void); /* options_type *options */
        void     CESound_exit(void);
-
-       int      CESound_start_audio_stream(int stereo);
-       int      CESound_update_audio_stream(INT16* buffer);
-       void     CESound_stop_audio_stream(void);
-
-static void     CESound_set_mastervolume(int volume);
-static int      CESound_get_mastervolume(void);
-static void     CESound_sound_enable(int enable);
-static void     CESound_update_audio(void);
-
 #if USED
+static void     CESound_update_audio(void);
 static void     CESound_play_sample(int channel, signed char* data, int len, int freq, int volume, int loop);
 static void     CESound_play_sample_16(int channel, signed short* data, int len, int freq, int volume, int loop);
 static void     CESound_play_streamed_sample(int channel, signed char* data, int len, int freq, int volume, int pan);
@@ -64,26 +50,19 @@ static void     CESound_set_sample_volume(int channel,int volume);
 static void     CESound_stop_sample(int channel);
 static void     CESound_restart_sample(int channel);
 static int      CESound_get_sample_status(int channel);
+static void     CESound_set_mastervolume(int volume);
+static int      CESound_get_mastervolume();
+static void     CESound_sound_enable(int enable);
 #endif
-
+// new or what?
+       int      CESound_start_audio_stream(int stereo);
+       int      CESound_update_audio_stream(INT16* buffer);
+       void     CESound_stop_audio_stream(void);
 
 /***************************************************************************
     External variables
  ***************************************************************************/
-/*
-struct OSDSound CESound = 
-{
-    { CESound_init },                     //    int     (*init)(options_type *options);
-    { CESound_exit },                     //    void    (*exit)(void);
-    { CESound_start_audio_stream },       //    int     (*start_audio_stream)(int stereo);
-    { CESound_update_audio_stream },      //    int     (*update_audio_stream)(INT16* buffer);
-    { CESound_stop_audio_stream },        //    void    (*stop_audio_stream)(void);
-    { CESound_set_mastervolume },         //    void    (*set_mastervolume)(int attenuation);
-    { CESound_get_mastervolume },         //    int     (*get_mastervolume)(void);
-    { CESound_sound_enable },             //    void    (*sound_enable)(int enable);
-    { CESound_update_audio }              //    void    (*update_audio)(void);
-};
-*/
+
 /***************************************************************************
     Internal structures
  ***************************************************************************/
@@ -94,11 +73,13 @@ struct tSound_private
 {
 	WAVEOUTCAPS		m_Caps;
 	HWAVEOUT		m_hWaveOut;
+	WAVEHDR			m_WaveHdrs[NUM_WAVEHDRS];
+
 	int				m_nSampleRate;
 	int				m_nSampleBits;
 	int				m_nChannels;
-	WAVEHDR			m_WaveHdrs[NUM_WAVEHDRS];
 	int				m_nVolume;		// -32 to 0 attenuation value
+// new?
     int             m_nSamplesPerFrame;
     int             m_nBytesPerFrame;
 };
@@ -110,18 +91,14 @@ struct tSound_private
 static struct tSound_private      This;
 
 /***************************************************************************
-    External OSD functions  
+    External OSD functions
  ***************************************************************************/
 
-/* static */ int CESound_init(void)
+/* static */ int CESound_init(void) /* options_type *options */
 {
-
-	UINT numdevs;
-
+	UINT numdevs; /* not used */
 	MMRESULT res;
 	WAVEFORMATEX wf;
-
-    g_Samplerate = 44100; // init this for console version
 
 	This.m_hWaveOut = NULL;
 /*
@@ -130,41 +107,39 @@ static struct tSound_private      This;
 		Machine->sample_rate = options->sample_rate;
 	}
 */
-	This.m_nSampleRate = g_Samplerate; // SAMPLE_RATE; // Machine->sample_rate;
-
-	This.m_nSampleBits = 16; // Machine->sample_bits;
+	g_Samplerate = 44100; // todo cleanup
+	This.m_nSampleRate = g_Samplerate; /* Machine->sample_rate */
+	This.m_nSampleBits = 16; /* Machine->sample_bits */
 	This.m_nChannels = 1;
 
 	wf.wFormatTag = WAVE_FORMAT_PCM;
-	wf.nChannels = This.m_nChannels; 
-	wf.nSamplesPerSec = This.m_nSampleRate; 
+	wf.nChannels = This.m_nChannels;
+	wf.nSamplesPerSec = This.m_nSampleRate;
+	wf.nAvgBytesPerSec = This.m_nSampleRate * This.m_nSampleBits / 8;
 	wf.nBlockAlign = This.m_nSampleBits * This.m_nChannels / 8;
-	wf.nAvgBytesPerSec = This.m_nSampleRate * This.m_nSampleBits / 8; 
-	wf.wBitsPerSample = This.m_nSampleBits; 
+	wf.wBitsPerSample = This.m_nSampleBits;
 	wf.cbSize = 0;
 
 	res = waveOutOpen(
 		&This.m_hWaveOut,	// Handle
 		WAVE_MAPPER, 		// ID (0 for wave mapper)
-		&wf,				// Wave format
-		0,					// Callback
-		0,					// Instance data
+		&wf,	    		// Wave format
+		0,			        // Callback
+		0,			        // Instance data
 		CALLBACK_NULL);
 
 	if (res != MMSYSERR_NOERROR)
 		return 1;
 
-	memset(&This.m_WaveHdrs, 0, sizeof(WAVEHDR) * NUM_WAVEHDRS); // set WaveHdrs Buffers to 0s
+	memset(&This.m_WaveHdrs, 0, sizeof(WAVEHDR) * NUM_WAVEHDRS);
 
 	This.m_nVolume = 0;
-
+// must be new
 	waveOutGetDevCaps(WAVE_MAPPER, &This.m_Caps, sizeof(WAVEOUTCAPS) );
 	numdevs = waveOutGetNumDevs();
 	return 0;
 }
 
-
-////////////////////////////////////////////////
 void CESound_exit(void)
 {
 	BOOL done;
@@ -179,14 +154,12 @@ void CESound_exit(void)
 		{
 			if (This.m_WaveHdrs[i].dwFlags & WHDR_DONE)
 			{
+// is this new?
 				// GN: wouldn't the buffer need free'd first, if sound system hadn't finished with this WAVEHDR yet??
 				if (This.m_WaveHdrs[i].lpData)
 					free( This.m_WaveHdrs[i].lpData );
-				
-				
+
 				waveOutUnprepareHeader(This.m_hWaveOut, &This.m_WaveHdrs[i], sizeof(WAVEHDR));
-
-
 				This.m_WaveHdrs[i].lpData = NULL;
 				This.m_WaveHdrs[i].dwBufferLength = 0;
 				This.m_WaveHdrs[i].dwFlags = 0;
@@ -199,10 +172,11 @@ void CESound_exit(void)
 	waveOutClose(This.m_hWaveOut);
 }
 
-
-//
+/*
+* must be new
+*/
 DWORD m_add, m_end;
-////////////////////////////////////////////////////
+
 int CESound_start_audio_stream(int stereo)
 {
 	int i; // count the WAVEHDRS
@@ -211,15 +185,15 @@ int CESound_start_audio_stream(int stereo)
     if (g_Samplerate == 0)
         return 0;
 
-    if (stereo)
+    if (stereo) {
         stereo = 1;	/* make sure it's either 0 or 1 */
+    }
 
 	// determine the number of samples and bytes per frame //
 
-// GN //    This.m_nSamplesPerFrame = (double)Machine->sample_rate / Machine->drv->frames_per_second;
-    This.m_nSamplesPerFrame = g_Samplerate / FPS; // SAMPLE_RATE / FPS;
-    This.m_nBytesPerFrame   = This.m_nSamplesPerFrame * sizeof(INT16) * (stereo + 1);
-
+	//This.m_nSamplesPerFrame = (double)Machine->sample_rate / Machine->drv->frames_per_second;
+	This.m_nSamplesPerFrame = g_Samplerate / FPS;
+	This.m_nBytesPerFrame   = This.m_nSamplesPerFrame * sizeof(INT16) * (stereo + 1);
 
 	// GN: set up the buffer on each wave header
 	for (i = 0; i < NUM_WAVEHDRS; i++)
@@ -237,20 +211,17 @@ int CESound_start_audio_stream(int stereo)
 	return This.m_nSamplesPerFrame;
 }
 
-
 ////////////////////////////////////////////////////////
 int CESound_update_audio_stream(INT16* buffer)
 {
     int buflen = This.m_nBytesPerFrame; // 1470 (16bit samples)
-	int freq = This.m_nSampleRate; // 44100
+//	int freq = This.m_nSampleRate; // 44100
 	// Can we divide down freq i.e. "rate = This.m_nSampleRate * 100 / 75" ???
 
 	int i = 0;
 	short *s;
     short *d;
-
 	DWORD pos;
-
 
 	for (i = 0; i < NUM_WAVEHDRS; i++)
 	{
@@ -267,31 +238,29 @@ int CESound_update_audio_stream(INT16* buffer)
 			}
 
 			// check if not WHDR_PREPARED before unpreparing?
-//			waveOutUnprepareHeader(This.m_hWaveOut, &This.m_WaveHdrs[i], sizeof(WAVEHDR));
+			//waveOutUnprepareHeader(This.m_hWaveOut, &This.m_WaveHdrs[i], sizeof(WAVEHDR));
 
-			// reuse this WAVE_HDR 
+			// reuse this WAVE_HDR
 			if (!This.m_WaveHdrs[i].lpData)
 			{
 				This.m_WaveHdrs[i].lpData = (LPSTR)malloc(buflen /* << 1 */ );
-//				This.m_WaveHdrs[i].dwBufferLength = buflen;
+				//This.m_WaveHdrs[i].dwBufferLength = buflen;
 				This.m_WaveHdrs[i].dwFlags = 0;
 
 				waveOutPrepareHeader(This.m_hWaveOut, &This.m_WaveHdrs[i], sizeof(WAVEHDR));
 			}
 
-
 			s = buffer;
 			d = (short *)This.m_WaveHdrs[i].lpData;
 
-//			add = (((DWORD)(freq << 15) / (DWORD)freq) << 1) + 3;
-//			end = buflen << 15; // buflen << 16;
-
+			//add = (((DWORD)(freq << 15) / (DWORD)freq) << 1) + 3;
+			//end = buflen << 15; // buflen << 16;
 
 			//  96337920 / 65539 = writing 1469 words
 			// but my buffer len in bytes was 1470
 			// so I am writing out twice as many bytes as necessary
 			// note above malloc was also mallocing twice as long a buffer as needed.
-//			for (pos = 0; pos < end; pos += add) 
+			//for (pos = 0; pos < end; pos += add)
 			for (pos = 0; pos < m_end; pos += m_add)
 			{
 				*d++ = s[pos >> 16];
@@ -301,47 +270,18 @@ int CESound_update_audio_stream(INT16* buffer)
 			return This.m_nSamplesPerFrame;
 		}
 	}
-	return 0; // GN: doesn't really return here usually
+	return 0;
 }
 
-
-//////////////////////////////////////////////////
 void    CESound_stop_audio_stream(void)
 {
-	;
 }
-
-
-/////////////////////////////////////////////////
-static void CESound_set_mastervolume(int volume)
-{
-	This.m_nVolume = volume;
-}
-
-
-/////////////////////////////////////////////////
-static int CESound_get_mastervolume(void)
-{
-    return This.m_nVolume;
-}
-
-/////////////////////////////////////////////////
-static void CESound_sound_enable(int enable)
-{
-	;
-}
-
-/////////////////////////////////////////////////
-static void CESound_update_audio(void)
-{
-	;
-}
-
-
-
 
 #if USED
-/////////////////////////////////////////////////
+static void CESound_update_audio(void)
+{
+}
+
 void CESound_play_sample(int channel, signed char *data, int len, int freq, int volume, int loop)
 {
 	int i;
@@ -378,10 +318,10 @@ void CESound_play_sample(int channel, signed char *data, int len, int freq, int 
 			add = (( (DWORD)(freq << 15) / (DWORD)This.m_nSampleRate) << 1) + 3;
 
 			add = freq << 15; // frequency of the sample (scaled by 32768, 15-bit shift)
-			add = add / This.m_nSampleRate; 
+			add = add / This.m_nSampleRate;
 
-//			add <<= 1;
-//			add += 3;
+			//add <<= 1;
+			//add += 3;
 
 			end = len << 15;
 
@@ -390,21 +330,19 @@ void CESound_play_sample(int channel, signed char *data, int len, int freq, int 
 				int loc = pos >> 15; // (it was scaled by 15 bit shift)
 				tmp++;
 
-				// Undersample: write out as 16 bit (with high byte 0) 
+				// Undersample: write out as 16 bit (with high byte 0)
 				// (if you set "add" to read every other byte)
-//				*d++ = (unsigned char)((int)s[ loc ] + 128); 
+				//*d++ = (unsigned char)((int)s[ loc ] + 128);
 				// Just read/write at normal rate
 				*d++ = s[ loc ] + 128;
 			}
 
 			waveOutWrite(This.m_hWaveOut, &This.m_WaveHdrs[i], sizeof(WAVEHDR));
-			return;	
+			return;
 		}
 	}
-
 }
 
-/////////////////////////////////////////////////
 static void CESound_play_sample_16(int channel, signed short *data, int len, int freq, int volume, int loop)
 {
 	int i;
@@ -437,12 +375,11 @@ static void CESound_play_sample_16(int channel, signed short *data, int len, int
 			for (pos = 0; pos < end; pos += add)
 				*d++ = (signed char)s[(pos >> 16)];
 			waveOutWrite(This.m_hWaveOut, &This.m_WaveHdrs[i], sizeof(WAVEHDR));
-			return;	
+			return;
 		}
 	}
 }
 
-/////////////////////////////////////////////////
 static void CESound_play_streamed_sample(int channel, signed char *data, int len, int freq, int volume, int pan)
 {
 	int i;
@@ -478,12 +415,11 @@ static void CESound_play_streamed_sample(int channel, signed char *data, int len
 			for (pos = 0; pos < end; pos += add)
 				*d++ = (unsigned char)((int)s[(pos >> 16)] + 128);
 			waveOutWrite(This.m_hWaveOut, &This.m_WaveHdrs[i], sizeof(WAVEHDR));
-			return;	
+			return;
 		}
 	}
 }
 
-/////////////////////////////////////////////////
 static void CESound_play_streamed_sample_16(int channel, signed short *data, int len, int freq, int volume, int pan)
 {
 	int i;
@@ -519,35 +455,43 @@ static void CESound_play_streamed_sample_16(int channel, signed short *data, int
 			for (pos = 0; pos < end; pos += add)
 				*d++ = (signed char)s[(pos >> 16)];
 			waveOutWrite(This.m_hWaveOut, &This.m_WaveHdrs[i], sizeof(WAVEHDR));
-			return;	
+			return;
 		}
 	}
 }
 
-/////////////////////////////////////////////////
 static void CESound_set_sample_freq(int channel,int freq)
 {
 }
 
-/////////////////////////////////////////////////
 static void CESound_set_sample_volume(int channel,int volume)
 {
 }
 
-/////////////////////////////////////////////////
 static void CESound_stop_sample(int channel)
 {
 }
 
-/////////////////////////////////////////////////
 static void CESound_restart_sample(int channel)
 {
 }
 
-/////////////////////////////////////////////////
 static int CESound_get_sample_status(int channel)
 {
     return 0;
 }
 
-#endif
+static void CESound_set_mastervolume(int volume)
+{
+	This.m_nVolume = volume;
+}
+
+static int CESound_get_mastervolume()
+{
+    return This.m_nVolume;
+}
+
+static void CESound_sound_enable(int enable)
+{
+}
+#endif /* if used */

@@ -17,7 +17,8 @@
             This port to Windows GDI is derived from mame32v36 as well
             as the various MameCE ports.
 ***************************************************************************/
-#include "mame.h" // NUM VOICES tmp
+
+#include "mame.h" // NUM VOICES temp
 #include <stdio.h> /* debug file output */
 #include "cesound.h" // #include "audio.h"
 #include "osdepend.h" /* key def macros */
@@ -25,15 +26,13 @@
 void osd_win32_sound_init();
 void osd_win32_joy_init();
 long CALLBACK WndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
-//int Win32KeyToOSDKey(UINT vk); // declare this is WndProc is used
+int Win32KeyToOSDKey(UINT vk);
 void dprintf(char *fmt,...);
 void osd_win32_create_palette();
 void osd_win32_mouse_moved(int x,int y);
 
-
 int first_free_pen;
 struct osd_bitmap *m_pMAMEBitmap; /* save pointer to DIB Section buffer to be free'd */
-
 int win32_debug = 1;
 
 typedef struct
@@ -71,7 +70,7 @@ static HBITMAP	    m_hOldBitmap;
 /* audio related stuff */
 int play_sound = 1;
 
-//#define NUMVOICES 8
+//#define NUMVOICES 8 // where did this go?
 #define SAMPLE_RATE 44100
 int MasterVolume = 100;
 
@@ -399,37 +398,35 @@ int osd_init(int argc,char **argv)
     //if (!is_window)
     //   ShowCursor(FALSE);
 
-    // apparently we need to start sound here
+    // apparently we need to start sound here todo ...
     CESound_init();
-    sound_start();
+    sound_start(); /* todo integrate into samples_sh_start */
 
     return 0;
 }
 
 void osd_win32_sound_init()
 {
-    // scary not used
+    // tbd
 }
 
 void osd_win32_joy_init()
 {
-    // not used
+    /* not used */
 }
 
 /* put here cleanup routines to be executed when the program is terminated. */
 void osd_exit(void)
 {
-    BOOL res;
-
 //   if (!is_window)
 //      ShowCursor(TRUE);
 
     if (IsWindow(hMain))
     {
-        res = DestroyWindow(hMain);
+        (void)DestroyWindow(hMain);
     }
 
-    sound_stop();
+    sound_stop(); /* osd_stop_audio_stream */
     CESound_exit();
 }
 
@@ -448,6 +445,7 @@ struct osd_bitmap *osd_create_bitmap(int width,int height)
 
         bitmap->width = width;
         bitmap->height = height;
+
         if ((bm = malloc(width * height * sizeof(unsigned char))) == 0)
         {
             free(bitmap);
@@ -481,27 +479,25 @@ void osd_free_bitmap(struct osd_bitmap *bitmap)
 /* provided. Return a osd_bitmap pointer or 0 in case of error. */
 struct osd_bitmap *osd_create_display(int width,int height)
 {
-    const unsigned short OSD_NUMPENS = 256u;
-    int scale = 0; /* placeholder, not used */
+    int i;
     WNDCLASS wndclass;
-    int style;
     int wndWidth,wndHeight;
-
+    char szAppName[] = "MAME_WinGDI";
+    const unsigned short OSD_NUMPENS = 256u;
+    int scale = 1; /* placeholder, not used */
     RECT wr;
-    int pitch_space;
-    struct osd_bitmap*   bitmap;
+    int pitch_space = 0; /* temp placeholder or remove */
+    struct osd_bitmap * bitmap = NULL;
+    BYTE * buffer_ptr = NULL;
+    HDC hDC = GetDC(NULL); /* Device Context for DIB Section */
 
-    int				i;
-    HDC				hDC;
-    BYTE*			buffer_ptr = 0;
-
-    m_pInfo = (BITMAPINFO*)malloc(sizeof(BITMAPINFOHEADER) +
-                                  sizeof(RGBQUAD) * OSD_NUMPENS);
+    m_pInfo =
+        (BITMAPINFO *)malloc(sizeof(BITMAPINFOHEADER) + sizeof(RGBQUAD) * OSD_NUMPENS);
     m_pInfo->bmiHeader.biSize          = sizeof(BITMAPINFOHEADER);
     m_pInfo->bmiHeader.biWidth         = width;
     m_pInfo->bmiHeader.biHeight        = (-1) * height; /* Negative means "top down" */
     m_pInfo->bmiHeader.biPlanes        = 1;
-    m_pInfo->bmiHeader.biBitCount      = 8; // This.m_nDepth;
+    m_pInfo->bmiHeader.biBitCount      = 8; /* color depth */
     m_pInfo->bmiHeader.biCompression   = BI_RGB;
     m_pInfo->bmiHeader.biSizeImage     = 0;
     m_pInfo->bmiHeader.biXPelsPerMeter = 0;
@@ -509,7 +505,6 @@ struct osd_bitmap *osd_create_display(int width,int height)
     m_pInfo->bmiHeader.biClrUsed       = 0;
     m_pInfo->bmiHeader.biClrImportant  = 0;
 
-    hDC = GetDC(NULL); // DC for DibSection
     m_hMemDC = CreateCompatibleDC(hDC);
 
     /* create the DIB and setup up a BM handle for Windows - [out]ppvBits is a pointer
@@ -530,6 +525,8 @@ struct osd_bitmap *osd_create_display(int width,int height)
         return (NULL);
     }
 
+    m_pMAMEBitmap = bitmap; /* save pointer to DIB Section buffer to be free'd */
+
     bitmap->width = width;
     bitmap->height = height;
 
@@ -541,45 +538,45 @@ struct osd_bitmap *osd_create_display(int width,int height)
 
     bitmap->private = buffer_ptr;
 
-    m_pMAMEBitmap = bitmap; /* save pointer to DIB Section buffer to be free'd */
 
-    char szAppName[]       = "MAME";
     wndclass.style         = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS | CS_CLASSDC;
-    wndclass.lpfnWndProc   = WndProc; /* MAME32_MessageProc */
+    wndclass.lpfnWndProc   = WndProc;
     wndclass.cbClsExtra    = 0;
     wndclass.cbWndExtra    = 0;
-    wndclass.hInstance     = GetModuleHandle(NULL); // hInstance ?
-    wndclass.hIcon         = NULL;
+    wndclass.hInstance     = GetModuleHandle(NULL);
+    wndclass.hIcon         = LoadIcon (NULL, IDI_APPLICATION);
     wndclass.hCursor       = LoadCursor(NULL,IDC_ARROW);
-    wndclass.hbrBackground = NULL;
+    wndclass.hbrBackground = (HBRUSH) COLOR_BACKGROUND;
     wndclass.lpszMenuName  = NULL;
     wndclass.lpszClassName = szAppName;
-    RegisterClass(&wndclass); /* if (RegisterClass(&WndClass) == 0) return NULL; */
 
-    style = WS_OVERLAPPEDWINDOW;
+    if (0 == RegisterClass(&wndclass))
+        return NULL;
 
     wndWidth = width*scale + 2*GetSystemMetrics(SM_CXFRAME);
     wndHeight = height*scale + 2*GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CYCAPTION);
-    hMain = CreateWindow(szAppName,szAppName,style,280,0,wndWidth,wndHeight,NULL,NULL,
-                         wndclass.hInstance,NULL);
 
-    if (!IsWindow(hMain))
-    {
-        return 1;
-    }
+    hMain = CreateWindow(            /* CreateWindowEx */
+                szAppName,           /* Classname */
+                szAppName,           /* Title Text */
+                WS_OVERLAPPEDWINDOW, /* default window */
+                CW_USEDEFAULT,       /* Windows decides the position */
+                CW_USEDEFAULT,       /* where the window ends up on the screen */
+                wndWidth,            /* The programs width */
+                wndHeight,           /* and height in pixels */
+                HWND_DESKTOP,        /* The window is a child-window to desktop */
+                NULL,                /* No menu */
+                wndclass.hInstance,  /* Program Instance handler (hThisInstance) */
+                NULL                 /* No Window Creation data */
+            );
+
+    /* Make the window visible on the screen */
+    ShowWindow (hMain, SW_SHOWNORMAL); /* nCmdShow */
 
     // having set the game window to some (arbitrary) size,
     // get the actual client rect so that we can adjust the window for the
     // title bar and border (there's probably some better way!)
     //GetClientRect(hMain, &wr);
-
-    SetWindowPos(hMain,
-                 HWND_NOTOPMOST,
-                 0, 0,
-                 240, //240 + (240 - wr.right),
-                 320, //320 + (320 - wr.bottom), // add the offset for title bar
-                 SWP_NOMOVE);
-
     GetClientRect(hMain, &wr);
 
     /* do the calcs for screen centering and clipping */
@@ -623,17 +620,17 @@ long CALLBACK WndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_PAINT:
     {
         PAINTSTRUCT     ps;
-        HDC hdc = BeginPaint(hwnd, &ps);
+        (void)BeginPaint(hwnd, &ps);
 
         BitBlt(ps.hdc,
-          m_DisplayRect.m_Left,               // x-coord of destination upper-left corner
-          m_DisplayRect.m_Top,                // y-coord of destination upper-left corner
-          m_pInfo->bmiHeader.biWidth,         //  width of destination rectangle
-          (-1) * m_pInfo->bmiHeader.biHeight, // height of destination rectangle
-          m_hMemDC,
-          m_VisibleRect.m_Left,  // must remember that bitmap width and height are
-          m_VisibleRect.m_Top,   // often given from the driver as some larger size
-          SRCCOPY);              // than the driver visible area, such as 256x256
+               m_DisplayRect.m_Left,               // x-coord of destination upper-left corner
+               m_DisplayRect.m_Top,                // y-coord of destination upper-left corner
+               m_pInfo->bmiHeader.biWidth,         //  width of destination rectangle
+               (-1) * m_pInfo->bmiHeader.biHeight, // height of destination rectangle
+               m_hMemDC,
+               m_VisibleRect.m_Left,  // must remember that bitmap width and height are
+               m_VisibleRect.m_Top,   // often given from the driver as some larger size
+               SRCCOPY);              // than the driver visible area, such as 256x256
         /*
         GetClientRect(hwnd,&rect);
         FillRect(hdc,&rect,(HBRUSH)(1+COLOR_BTNFACE));
@@ -682,7 +679,7 @@ long CALLBACK WndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_MOUSEMOVE :
-        osd_win32_mouse_moved(LOWORD(lParam),HIWORD(lParam));
+        /* osd_win32_mouse_moved(LOWORD(lParam),HIWORD(lParam)) */
         break;
 
     case WM_CLOSE:
@@ -707,12 +704,13 @@ void osd_close_display(void)
 
 //   if (play_sound)
 //      ACloseAudio();
+//
 //   osd_free_bitmap(bitmap);
 
     // cleanup the DIB and display bitmap
     SelectObject(m_hMemDC, (HGDIOBJ)m_hOldBitmap);
     DeleteObject(m_hBitmap);
-    free(m_pMAMEBitmap);
+    free(m_pMAMEBitmap);     // todo check osd_free_bitmap() frees the bitmap->private
     free(m_pInfo);
 }
 
@@ -727,7 +725,8 @@ int osd_obtain_pen(unsigned char red, unsigned char green, unsigned char blue)
     dibentry.rgbBlue = blue;
     SetDIBColorTable(m_hMemDC,first_free_pen, 1, &dibentry);
 
-    /* dprintf("OOP %u %u %u : %i\n", red, green, blue, palette_offset+pal.palNumEntries); */
+    /* dprintf("OOP %u %u %u : %i\n",
+        red, green, blue, palette_offset+pal.palNumEntries); */
     retval = (palette_offset+first_free_pen) % 256;
     first_free_pen = (first_free_pen + 1)%256;
 
@@ -748,12 +747,12 @@ void osd_update_display()
     InvalidateRect( hMain, NULL, FALSE);
     UpdateWindow(hMain);
 
-//	MAME32_ProcessMessages();
-
     /* dprintf("Updating display\n"); */
 
 //   if (!is_active && !is_window)
 //      return;
+//
+//   millicount = timeGetTime();
 
     return;
 }
@@ -772,37 +771,27 @@ int osd_update_audio_stream(INT16* buffer)
     return CESound_update_audio_stream(buffer);
 }
 
-void osd_stop_audio_stream(void)
-{
-    CESound_stop_audio_stream(); // currently unimplemented, just here for completeness.
-}
+//void osd_stop_audio_stream(void)
+//{
+//    CESound_stop_audio_stream(); // currently unimplemented, just here for completeness.
+//}
 
 void osd_update_audio(void)
 {
     if (play_sound == 0)
         return;
 
-    sound_update(); // AUpdateAudio();
+    // todo integrate into samples_update?
+    mixer_sh_update(); // sound_update() // AUpdateAudio();
 }
 
 void osd_play_sample(int channel,unsigned char *data,int len,int freq,int volume,int loop)
 {
-    if (play_sound == 0 || channel >= NUMVOICES) return;
-#if 0
-    sample_start2(channel, data, len, freq, volume, loop);
-#else
-	if (channel >= numchannels)
-	{
-		if (errorlog) fprintf(errorlog,"error: sample_start() called with channel = %d, but only %d channels allocated\n",channel,numchannels);
-		return;
-	}
+    if (play_sound == 0 || channel >= NUMVOICES)
+        return;
 
-	mixer_play_sample(firstchannel + channel,
-				data,
-				len,
-				freq,
-				loop);
-#endif
+    sample_start2(channel, data, len, freq, volume, loop);
+
     sample_set_volume(channel, volume);
 }
 
@@ -824,7 +813,8 @@ void osd_stop_sample( int channel )
 {
     if (play_sound == 0 || channel >= NUMVOICES)
         return;
-    sample_set_volume(channel, 0); //  AStopVoice(hVoice[channel]);
+
+    sample_set_volume(channel, 0); /* AStopVoice(hVoice[channel]) */
 }
 
 /* check if a key is pressed. The keycode is the standard PC keyboard code, as */
@@ -841,8 +831,8 @@ int osd_key_pressed(int keycode)
         DispatchMessage(&msg);
     }
 
-//   if (keycode == OSD_KEY_ESC && ending == TRUE)//tbd
-//      return 1;//tbd
+//   if (keycode == OSD_KEY_ESC && ending == TRUE)
+//      return 1;
 
     /* dprintf("returning %i\n",key[keycode]); */
     return key[keycode];
@@ -893,6 +883,14 @@ void osd_poll_joystick(void)
 {
 }
 
+/* check if the joystick is moved in the specified direction, defined in */
+/* osdepend.h. Return 0 if it is not pressed, nonzero otherwise. */
+int osd_joy_pressed(int joycode)
+{
+    /* not used */
+    return 0;
+}
+
 void dprintf(char *fmt,...)
 {
     char s[500];
@@ -909,12 +907,25 @@ void dprintf(char *fmt,...)
     WriteFile(GetStdHandle(STD_OUTPUT_HANDLE),s,strlen(s),&written,NULL);
     {
         static FILE *junk;
+
         if (junk == NULL)
             junk = fopen("debug.txt","wt");
+
         if (junk != NULL)
             fprintf(junk, s);
     }
     va_end(marker);
+}
+
+void osd_win32_create_palette()
+{
+//   HDC hdc;
+//   int i;
+//   BOOL is_palette_device;
+//
+//   /* dprintf("creating palette of %i colors\n",pal.palNumEntries); */
+//
+//   DirectDrawSetPalette(&pal);
 }
 
 void osd_win32_mouse_moved(int x,int y)
@@ -923,4 +934,3 @@ void osd_win32_mouse_moved(int x,int y)
 //    mouse_y = y;
 //    /* printf("%i %i\n",mouse_x,mouse_y); */
 }
-
